@@ -1,0 +1,4 @@
+# Netlify : dossiers techniques non publiés (le site n'en a pas besoin)
+/supabase/*   /index.html   404!
+/tools/*      /index.html   404!
+/README.md    /index.html   404!

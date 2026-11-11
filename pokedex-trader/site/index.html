@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr" class="intro-on">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pokédex Trader</title>
+<meta name="description" content="Pokédex Trader suit les cartes Pokémon anglaises, japonaises et françaises, chacune à la cote de son propre marché : opportunités d'achat, signaux de vente, suivi de collection et master sets.">
+<meta name="theme-color" content="#3b4cca">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23fff' stroke='%23171a2b' stroke-width='2.5'/%3E%3Cpath d='M2 16a14 14 0 0 1 28 0z' fill='%23e3350d' stroke='%23171a2b' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='%23fff' stroke='%23171a2b' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+<script>
+  // Thème mémorisé et animation d'ouverture une seule fois par session (avant le premier affichage)
+  try { var t = localStorage.getItem('pt-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+  try { if (sessionStorage.getItem('pt-intro')) { document.documentElement.classList.add('no-intro'); document.documentElement.classList.remove('intro-on'); } } catch (e) {}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+<script type="module" src="assets/app.js"></script>
+</head>
+<body>
+<!--INTRO-->
+<div id="intro" aria-hidden="true">
+  <div class="bgfill"></div>
+  <div class="pb">
+    <svg viewBox="-110 -110 220 240" role="presentation">
+      <ellipse class="shadow" cx="0" cy="116" rx="70" ry="9" fill="#000" opacity=".45"/>
+      <g class="rock">
+        <g class="bottom">
+          <path d="M-100 0 A100 100 0 0 0 100 0 Z" fill="#f4f5fa" stroke="#171a2b" stroke-width="8"/>
+          <path d="M-62 46 A72 72 0 0 0 30 66" fill="none" stroke="#d5d8e6" stroke-width="10" stroke-linecap="round"/>
+          <rect x="-100" y="0" width="200" height="9" fill="#171a2b"/>
+          <path d="M-30 0 A30 30 0 0 0 30 0 Z" fill="#171a2b"/>
+        </g>
+        <g class="top">
+          <path d="M-100 0 A100 100 0 0 1 100 0 Z" fill="#e3350d" stroke="#171a2b" stroke-width="8"/>
+          <path d="M-70 -40 A80 80 0 0 1 -20 -78" fill="none" stroke="#ff8a6e" stroke-width="12" stroke-linecap="round" opacity=".8"/>
+          <rect x="-100" y="-9" width="200" height="9" fill="#171a2b"/>
+          <path d="M-30 0 A30 30 0 0 1 30 0 Z" fill="#171a2b"/>
+          <circle class="btn-core" cx="0" cy="0" r="17" fill="#fff" stroke="#171a2b" stroke-width="6"/>
+          <circle class="glow" cx="0" cy="0" r="26" fill="#fffbe0"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <div class="hint">Toucher ou appuyer sur une touche pour passer</div>
+</div>
+<!--/INTRO-->
+<a class="skip-link" href="#main">Aller au contenu</a>
+<header class="site-header" id="site-header"></header>
+<main class="wrap" id="main" tabindex="-1">
+  <div class="panel" id="boot"><div class="sub">Chargement…</div></div>
+</main>
+<footer class="site-footer" id="site-footer"></footer>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<dialog id="dlg" aria-labelledby="dlg-title"></dialog>
+<div id="print-area"></div>
+<noscript><p style="padding:16px">Pokédex Trader a besoin de JavaScript pour fonctionner.</p></noscript>
+</body>
+</html>
