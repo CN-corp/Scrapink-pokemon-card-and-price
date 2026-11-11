@@ -1,0 +1,40 @@
+# Pokédex Trader : site public hébergé sur le NAS.
+# Deux services :
+#   web    : nginx sert le dossier ../site (lecture seule ; supabase/, README… bloqués par nginx)
+#   tunnel : Cloudflare Tunnel publie le site en HTTPS, sans ouvrir de port sur la box
+# Réglages dans le fichier .env (copier .env.example en .env).
+name: pokedex-trader
+
+services:
+  web:
+    image: nginx:1.30-alpine
+    container_name: pokedex-trader-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8088}:80"
+    volumes:
+      - ../site:/usr/share/nginx/html:ro
+      - ./nginx:/etc/nginx/conf.d:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    container_name: pokedex-trader-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - web
+    # À activer seulement si le site n'est pas déjà publié par le même moyen que
+    # Le Jardin des Promesses : docker compose --profile tunnel up -d
+    profiles: ["tunnel"]

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pokédex Trader</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0f1218;--panel:#171b24;--panel2:#1e2330;--line:#2a3142;--txt:#e7eaf0;--mut:#8b93a7;
+--up:#2fbf71;--down:#ef5350;--acc:#ffcb05;--blue:#4c8dff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:18px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;color:var(--acc);letter-spacing:.3px}
+nav{display:flex;gap:4px;flex-wrap:wrap}nav button{background:none;border:0;color:var(--mut);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+nav button.on{background:var(--panel2);color:var(--txt)}
+#status{margin-left:auto;color:var(--mut);font-size:12px}
+main{padding:20px;max-width:1400px;margin:0 auto}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .l{color:var(--mut);font-size:12px}.kpi .v{font-size:20px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 12px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:var(--mut);font-weight:500;font-size:12px;position:sticky;top:0;background:var(--panel)}
+td.n,th.n{text-align:right}tr.click{cursor:pointer}tr.click:hover{background:var(--panel2)}
+.up{color:var(--up)}.down{color:var(--down)}.mut{color:var(--mut)}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+.t-buy{background:#173d2a;color:#5ee39a}.t-sell{background:#4a1c1c;color:#ff8a80}.t-hold{background:#2a3142;color:#c5cbe0}.t-warn{background:#4a3a10;color:#ffd666}
+img.th{width:34px;height:47px;object-fit:cover;border-radius:3px;background:#222}
+.why{color:var(--mut);font-size:12px;max-width:420px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut)}
+input,select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:8px 10px;border-radius:8px;font-size:14px}
+button.p{background:var(--acc);color:#111;border:0;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer}
+button.s{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:8px 12px;border-radius:8px;cursor:pointer}
+.scroll{max-height:620px;overflow:auto}
+#modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
+#modal .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:1000px;width:100%;max-height:92vh;overflow:auto;padding:20px}
+.flex{display:flex;gap:20px;flex-wrap:wrap}.flex>img{width:220px;border-radius:10px}
+.md h1{font-size:20px}.md h2{font-size:16px;margin-top:20px}.md table{margin:8px 0}
+.sugg{position:absolute;background:var(--panel2);border:1px solid var(--line);border-radius:8px;max-height:280px;overflow:auto;z-index:4;min-width:360px}
+.sugg div{padding:6px 10px;cursor:pointer}.sugg div:hover{background:var(--line)}
+.hide{display:none}
+@media (max-width:700px){main{padding:12px}.why{max-width:200px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ Pokédex Trader</h1>
+  <nav>
+    <button data-tab="market" class="on">Marché</button>
+    <button data-tab="pokedex">Pokédex</button>
+    <button data-tab="perf">Performance</button>
+    <button data-tab="reports">Rapports</button>
+    <button data-tab="data">Données</button>
+  </nav>
+  <div id="status"></div>
+</header>
+<main>
+<!-- MARCHÉ -->
+<section id="market">
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Opportunités d'achat</h2>
+      <div class="row">
+        <label>Prix mini (€)<input id="minPrice" type="number" value="3" style="width:90px"></label>
+        <label>Recherche<input id="mSearch" placeholder="Nom, extension…" style="width:200px"></label>
+        <button class="s" onclick="loadMarket()">Actualiser</button>
+      </div>
+    </div>
+    <div class="scroll" style="margin-top:12px"><table id="mTable"></table></div>
+  </div>
+</section>
+
+<!-- POKÉDEX -->
+<section id="pokedex" class="hide">
+  <div class="grid" id="pdKpi"></div>
+  <div class="card">
+    <h2>Ajouter un achat / une vente</h2>
+    <div class="row" style="position:relative">
+      <label>Carte<input id="txCardQ" placeholder="Tapez un nom…" style="width:260px" autocomplete="off"><input id="txCard" type="hidden"></label>
+      <div id="sugg" class="sugg hide" style="top:60px;left:0"></div>
+      <label>Sens<select id="txSide"><option value="buy">Achat</option><option value="sell">Vente</option></select></label>
+      <label>Quantité<input id="txQty" type="number" value="1" min="1" style="width:80px"></label>
+      <label>Prix unitaire (€)<input id="txPrice" type="number" step="0.01" style="width:110px"></label>
+      <label>Frais (€)<input id="txFees" type="number" step="0.01" value="0" style="width:90px"></label>
+      <label>Date<input id="txDate" type="date"></label>
+      <label>État<select id="txCond"><option>NM</option><option>EX</option><option>GD</option><option>LP</option><option>PSA 10</option><option>PSA 9</option></select></label>
+      <label>Plateforme<input id="txPlat" placeholder="Cardmarket, Vinted…" style="width:140px"></label>
+      <button class="p" onclick="addTx()">Enregistrer</button>
+    </div>
+    <div id="txMsg" class="mut" style="margin-top:8px"></div>
+  </div>
+  <div class="card"><h2>Mes cartes et conseils</h2><div class="scroll"><table id="pdTable"></table></div></div>
+  <div class="card"><h2>Ventes réalisées</h2><div class="scroll"><table id="rzTable"></table></div></div>
+  <div class="card"><h2>Historique des transactions</h2><div class="scroll"><table id="txTable"></table></div></div>
+</section>
+
+<!-- PERFORMANCE -->
+<section id="perf" class="hide">
+  <div class="grid" id="pfKpi"></div>
+  <div class="card"><h2>Depuis le jour zéro</h2><div style="height:360px"><canvas id="pfChart"></canvas></div></div>
+  <div class="card"><h2>Indice de performance (base 100, neutre aux apports)</h2><div style="height:260px"><canvas id="pfIdx"></canvas></div></div>
+  <div class="card"><h2>Résultat mois par mois</h2><div style="height:260px"><canvas id="pfMonth"></canvas></div></div>
+</section>
+
+<!-- RAPPORTS -->
+<section id="reports" class="hide">
+  <div class="card">
+    <div class="row"><label>Mois<select id="rMonth" onchange="loadReport()"></select></label>
+      <button class="s" onclick="exportReport()">Exporter en Markdown</button><span id="rMsg" class="mut"></span></div>
+  </div>
+  <div class="card md" id="rBody"></div>
+</section>
+
+<!-- DONNÉES -->
+<section id="data" class="hide">
+  <div class="grid" id="dKpi"></div>
+  <div class="card">
+    <h2>Synchroniser les prix (pokemontcg.io : Cardmarket + TCGPlayer)</h2>
+    <div class="row">
+      <label>Filtre optionnel<input id="syncQ" placeholder="ex. set.id:sv8 (vide = toutes les cartes)" style="width:320px"></label>
+      <button class="p" onclick="sync()">Lancer la synchro</button>
+    </div>
+    <p class="mut" id="syncMsg"></p>
+    <p class="mut">Astuce : planifiez <code>python -m pokedex_trader sync</code> chaque jour pour construire l'historique.</p>
+  </div>
+</section>
+</main>
+
+<div id="modal" onclick="if(event.target===this)this.style.display='none'"><div class="box" id="mBox"></div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const eur = v => v==null ? '—' : v.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+const pct = (v,mul=100) => v==null ? '—' : `<span class="${v>=0?'up':'down'}">${v>=0?'+':''}${(v*mul).toFixed(1)} %</span>`;
+const sgn = v => v==null ? '—' : `<span class="${v>=0?'up':'down'}">${eur(v)}</span>`;
+const api = async (u, body) => { const r = await fetch(u, body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {}); const j = await r.json(); if (!r.ok) throw new Error(j.error||r.status); return j; };
+const tag = s => { const c = /ACHAT|RENFORCER/.test(s)?'t-buy':/VENDRE|ÉVITER/.test(s)?'t-sell':/ALLÉGER/.test(s)?'t-warn':'t-hold'; return `<span class="tag ${c}">${s||'—'}</span>`; };
+const img = u => u ? `<img class="th" loading="lazy" src="${u}" onerror="this.style.visibility='hidden'">` : '';
+const esc = s => (s??'').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const charts = {};
+function chart(id, cfg){ if (!window.Chart) return; charts[id]?.destroy(); charts[id] = new Chart($('#'+id), cfg); }
+if (window.Chart) { Chart.defaults.color = '#8b93a7'; Chart.defaults.borderColor = '#2a3142'; }
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x===b));
+  document.querySelectorAll('main>section').forEach(s => s.classList.toggle('hide', s.id!==b.dataset.tab));
+  ({market:loadMarket, pokedex:loadPokedex, perf:loadPerf, reports:loadMonths, data:loadData})[b.dataset.tab]();
+});
+
+let market = [];
+async function loadMarket(){
+  market = await api('/api/opportunities?kind=buy&limit=200&min_price=' + ($('#minPrice').value||0));
+  renderMarket();
+}
+function renderMarket(){
+  const q = $('#mSearch').value.toLowerCase();
+  const rows = market.filter(r => !q || (r.name+' '+r.set_name).toLowerCase().includes(q));
+  $('#mTable').innerHTML = `<tr><th></th><th>Carte</th><th>Signal</th><th class="n">Score</th><th class="n">Cote</th><th class="n">7 j</th><th class="n">30 j</th><th class="n">90 j</th><th class="n">Estimé 30 j</th><th class="n">Gain net 30 j</th><th class="n">Volat.</th><th>Pourquoi</th></tr>` +
+    rows.map(r => `<tr class="click" onclick="openCard('${r.card_id}')"><td>${img(r.image_small)}</td>
+    <td><b>${esc(r.name)}</b><div class="mut">${esc(r.set_name)} · ${esc(r.rarity||'')}</div></td><td>${tag(r.signal)}</td>
+    <td class="n">${r.buy_score.toFixed(0)}</td><td class="n">${eur(r.price)}</td><td class="n">${pct(r.mom7)}</td><td class="n">${pct(r.mom30)}</td><td class="n">${pct(r.mom90)}</td>
+    <td class="n">${eur(r.est30)}</td><td class="n">${pct(r.exp_return30_net)}</td><td class="n">${r.vol30==null?'—':(r.vol30*100).toFixed(0)+' %'}</td>
+    <td class="why">${r.reasons_buy.slice(0,3).map(esc).join(' · ')}</td></tr>`).join('');
+}
+$('#mSearch').oninput = renderMarket;
+
+async function loadPokedex(){
+  const [d, perf] = await Promise.all([api('/api/pokedex'), api('/api/performance')]);
+  const s = perf.summary;
+  $('#pdKpi').innerHTML = [['Cartes détenues', s.cards_held], ['Valeur (cote)', eur(s.value)], ['Valeur nette si tout vendu', eur(s.net_liquidation_value)],
+    ['Latent', sgn(s.unrealized_pnl)], ['Réalisé', sgn(s.realized_pnl)], ['Taux de réussite', s.win_rate_pct==null?'—':s.win_rate_pct+' %']]
+    .map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  $('#pdTable').innerHTML = `<tr><th></th><th>Carte</th><th>Conseil</th><th class="n">Qté</th><th class="n">PRU</th><th class="n">Cote</th><th class="n">Latent</th><th class="n">Poids</th><th class="n">Estimé 30 j</th><th>Pourquoi</th></tr>` +
+    d.positions.map(p => `<tr class="click" onclick="openCard('${p.card_id}')"><td>${img(p.image_small)}</td><td><b>${esc(p.name)}</b><div class="mut">${esc(p.set_name)} · depuis ${p.held_since}</div></td>
+    <td>${tag(p.signal)}</td><td class="n">${p.quantity}</td><td class="n">${eur(p.avg_cost)}</td><td class="n">${eur(p.price)}</td>
+    <td class="n">${sgn(p.unrealized)}<div>${pct(p.unrealized_pct,1)}</div></td><td class="n">${(p.weight*100).toFixed(1)} %</td><td class="n">${eur(p.est30)}</td>
+    <td class="why">${(p.reasons||[]).slice(0,3).map(esc).join(' · ')}</td></tr>`).join('') || '<tr><td class="mut">Aucune carte pour l\'instant.</td></tr>';
+  $('#rzTable').innerHTML = `<tr><th>Date</th><th>Carte</th><th class="n">Qté</th><th class="n">Prix de revient</th><th class="n">Encaissé net</th><th class="n">P&amp;L</th><th class="n">Détention</th></tr>` +
+    d.realized.map(r => `<tr><td>${r.date}</td><td>${esc(r.name)}</td><td class="n">${r.quantity}</td><td class="n">${eur(r.cost)}</td><td class="n">${eur(r.proceeds)}</td><td class="n">${sgn(r.pnl)} ${pct(r.pnl_pct,1)}</td><td class="n">${r.avg_hold_days} j</td></tr>`).join('');
+  $('#txTable').innerHTML = `<tr><th>Date</th><th>Sens</th><th>Carte</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Frais</th><th>État</th><th>Plateforme</th><th></th></tr>` +
+    d.transactions.map(t => `<tr><td>${t.date}</td><td>${t.side==='buy'?'<span class="up">Achat</span>':'<span class="down">Vente</span>'}</td><td>${esc(t.name)}</td><td class="n">${t.quantity}</td><td class="n">${eur(t.unit_price)}</td><td class="n">${eur(t.fees)}</td><td>${esc(t.condition)}</td><td>${esc(t.platform||'')}</td><td><button class="s" onclick="delTx(${t.id})">✕</button></td></tr>`).join('');
+}
+let st;
+$('#txCardQ').oninput = e => { clearTimeout(st); st = setTimeout(async () => {
+  const q = e.target.value.trim(); if (q.length < 2) return $('#sugg').classList.add('hide');
+  const res = await api('/api/search?q=' + encodeURIComponent(q));
+  $('#sugg').innerHTML = res.map(c => `<div onclick="pick('${c.id}','${esc(c.name).replace(/'/g,"\\'")} — ${esc(c.set_name).replace(/'/g,"\\'")} #${c.number}',${c.price||0})">${esc(c.name)} <span class="mut">${esc(c.set_name)} #${esc(c.number)} · ${eur(c.price)}</span></div>`).join('') || '<div class="mut">Aucun résultat</div>';
+  $('#sugg').classList.remove('hide'); }, 200); };
+function pick(id, label, price){ $('#txCard').value = id; $('#txCardQ').value = label; $('#txPrice').value = price || ''; $('#sugg').classList.add('hide'); }
+async function addTx(){
+  try {
+    await api('/api/transactions', {card_id: $('#txCard').value, side: $('#txSide').value, quantity: $('#txQty').value, unit_price: $('#txPrice').value,
+      fees: $('#txFees').value, date: $('#txDate').value, condition: $('#txCond').value, platform: $('#txPlat').value});
+    $('#txMsg').textContent = 'Transaction enregistrée.'; loadPokedex();
+  } catch(e){ $('#txMsg').textContent = 'Erreur : ' + e.message; }
+}
+async function delTx(id){ if (confirm('Supprimer cette transaction ?')) { await api('/api/transactions/delete', {id}); loadPokedex(); } }
+
+async function loadPerf(){
+  const {summary:s, curve} = await api('/api/performance');
+  $('#pfKpi').innerHTML = [['Jour zéro', s.day_zero||'—'], ['Investi', eur(s.invested)], ['Encaissé', eur(s.proceeds)], ['Valeur actuelle', eur(s.value)],
+    ['Résultat total', sgn(s.pnl)], ['ROI', pct(s.roi_pct,1)], ['Perf. time-weighted', pct(s.twr_pct,1)], ['Drawdown max', pct(s.max_drawdown_pct,1)]]
+    .map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  const L = curve.map(c => c.date);
+  const opt = {responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, elements:{point:{radius:0}}, scales:{x:{ticks:{maxTicksLimit:10}}}};
+  chart('pfChart', {type:'line', data:{labels:L, datasets:[
+    {label:'Valeur des cartes', data:curve.map(c=>c.value), borderColor:'#ffcb05', borderWidth:2},
+    {label:'Capital investi cumulé', data:curve.map(c=>c.invested), borderColor:'#4c8dff', borderWidth:1.5},
+    {label:'Résultat (latent + réalisé)', data:curve.map(c=>c.pnl), borderColor:'#2fbf71', borderWidth:1.5, fill:{target:'origin', above:'#2fbf7122', below:'#ef535022'}}]}, options:opt});
+  chart('pfIdx', {type:'line', data:{labels:L, datasets:[{label:'Indice', data:curve.map(c=>c.twr_index), borderColor:'#ffcb05', borderWidth:2}]}, options:{...opt, plugins:{legend:{display:false}}}});
+  const months = {}; let prev = 0;
+  curve.forEach(c => { months[c.date.slice(0,7)] = c.pnl; });
+  const mk = Object.keys(months), mv = mk.map(k => { const v = months[k]-prev; prev = months[k]; return +v.toFixed(2); });
+  chart('pfMonth', {type:'bar', data:{labels:mk, datasets:[{label:'Résultat du mois', data:mv, backgroundColor:mv.map(v=>v>=0?'#2fbf71':'#ef5350')}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+}
+
+async function loadMonths(){
+  const m = await api('/api/months');
+  $('#rMonth').innerHTML = m.map(x => `<option>${x}</option>`).join('');
+  if (m.length) loadReport(); else $('#rBody').innerHTML = '<p class="mut">Ajoutez des transactions dans le Pokédex pour générer des rapports.</p>';
+}
+function md(t){ // mini rendu Markdown (titres, tableaux, listes, gras)
+  const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/_(.+?)_/g,'<i>$1</i>');
+  const out = []; let tbl = null;
+  for (const line of t.split('\n')) {
+    if (line.startsWith('|')) { const cells = line.slice(1,-1).split('|').map(c=>c.trim()); if (/^-+$/.test(cells[0])) continue;
+      if (!tbl) { tbl = []; tbl.push('<table><tr>' + cells.map(c=>`<th>${inl(c)}</th>`).join('') + '</tr>'); } else tbl.push('<tr>' + cells.map(c=>`<td>${inl(c)}</td>`).join('') + '</tr>'); continue; }
+    if (tbl) { out.push(tbl.join('') + '</table>'); tbl = null; }
+    if (line.startsWith('## ')) out.push(`<h2>${inl(line.slice(3))}</h2>`); else if (line.startsWith('# ')) out.push(`<h1>${inl(line.slice(2))}</h1>`);
+    else if (line.startsWith('- ')) out.push(`<div style="margin:4px 0">• ${inl(line.slice(2))}</div>`); else if (line.trim()) out.push(`<p>${inl(line)}</p>`);
+  }
+  if (tbl) out.push(tbl.join('') + '</table>');
+  return out.join('');
+}
+async function loadReport(){ const r = await api('/api/report?month=' + $('#rMonth').value); $('#rBody').innerHTML = r.markdown ? md(r.markdown) : '<p class="mut">Pas de données.</p>'; }
+async function exportReport(){ const r = await api('/api/report/export', {month: $('#rMonth').value}); $('#rMsg').textContent = r.path ? 'Exporté : ' + r.path : 'Rien à exporter'; }
+
+async function loadData(){
+  const s = await api('/api/stats');
+  $('#dKpi').innerHTML = [['Cartes en base', s.cards.toLocaleString('fr-FR')], ['Relevés de prix', s.price_points.toLocaleString('fr-FR')], ['Jours d\'historique', s.days], ['Premier relevé', s.first_date||'—'], ['Dernier relevé', s.last_date||'—']]
+    .map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  $('#syncMsg').textContent = s.sync.running ? 'En cours : ' + s.sync.progress : (s.last_sync ? `Dernière synchro : ${s.last_sync.finished_at} — ${s.last_sync.status} (${s.last_sync.cards} cartes) ${s.last_sync.message||''}` : 'Aucune synchro encore.');
+  if (s.sync.running) setTimeout(loadData, 3000);
+}
+async function sync(){ try { await api('/api/sync', {query: $('#syncQ').value}); loadData(); } catch(e){ $('#syncMsg').textContent = e.message; } }
+
+async function openCard(id){
+  const d = await api('/api/card?id=' + encodeURIComponent(id)); const c = d.card, a = d.analysis || {};
+  $('#mBox').innerHTML = `<div class="flex"><img src="${c.image_large||c.image_small||''}" onerror="this.style.display='none'">
+  <div style="flex:1;min-width:300px"><h2 style="margin:0">${esc(c.name)} ${tag(a.signal)}</h2><div class="mut">${esc(c.set_name)} #${esc(c.number)} · ${esc(c.rarity||'')} · ${c.id}</div>
+  <div class="grid" style="margin-top:12px">${[['Cote',eur(a.price)],['Estimé 30 j',eur(a.est30)],['Fourchette 30 j',a.est30_range?eur(a.est30_range[0])+' – '+eur(a.est30_range[1]):'—'],['Estimé 90 j',eur(a.est90)],
+   ['Score achat',a.buy_score??'—'],['Score vente',a.sell_score??'—'],['RSI',a.rsi==null?'—':a.rsi.toFixed(0)],['Volatilité/mois',a.vol30==null?'—':(a.vol30*100).toFixed(0)+' %'],
+   ['Moy. 30 j',eur(a.sma30)],['Plus haut 1 an',eur(a.ath_365)],['TCGPlayer (€)',eur(a.other_market)],['Gain net 30 j',pct(a.exp_return30_net)]].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:16px">${v}</div></div>`).join('')}</div>
+  ${(a.reasons_buy||[]).length?`<p><b class="up">Pour l'achat :</b> ${a.reasons_buy.map(esc).join(' · ')}</p>`:''}
+  ${(a.reasons_sell||[]).length?`<p><b class="down">Pour la vente :</b> ${a.reasons_sell.map(esc).join(' · ')}</p>`:''}
+  <div class="row"><label>Acheter sous (€)<input id="tBuy" type="number" style="width:110px"></label><label>Vendre au-dessus (€)<input id="tSell" type="number" style="width:110px"></label>
+  <button class="s" onclick="saveTarget('${c.id}')">Fixer mes objectifs</button>
+  <label>Prix constaté (€)<input id="mPrice" type="number" style="width:110px"></label><button class="s" onclick="savePrice('${c.id}')">Ajouter un relevé</button></div></div></div>
+  <div style="height:280px;margin-top:16px"><canvas id="cChart"></canvas></div>`;
+  $('#modal').style.display = 'flex';
+  chart('cChart', {type:'line', data:{labels:d.history.map(h=>h[0]), datasets:[{label:'Prix (€)', data:d.history.map(h=>h[1]), borderColor:'#ffcb05', borderWidth:2, pointRadius:d.history.length<30?3:0}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{maxTicksLimit:8}}}}});
+}
+async function saveTarget(id){ await api('/api/targets', {card_id:id, buy_below:+$('#tBuy').value||null, sell_above:+$('#tSell').value||null}); openCard(id); }
+async function savePrice(id){ await api('/api/price', {card_id:id, price:+$('#mPrice').value}); openCard(id); }
+
+$('#txDate').value = new Date().toISOString().slice(0,10);
+api('/api/stats').then(s => $('#status').textContent = `${s.cards.toLocaleString('fr-FR')} cartes · cotes au ${s.last_date||'—'}`);
+loadMarket();
+</script>
+</body>
+</html>

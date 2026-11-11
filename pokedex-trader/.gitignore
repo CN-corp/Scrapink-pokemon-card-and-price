@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.env
+moteur/data/*
+!moteur/data/.gitkeep
+moteur/reports/*
+!moteur/reports/.gitkeep
+site/preview.html
+.DS_Store
