@@ -10,6 +10,10 @@ def add_transaction(conn, card_id, side, quantity, unit_price, on_date=None, fee
                     condition="NM", language="FR", platform=None, notes=None):
     if side not in ("buy", "sell"):
         raise ValueError("side doit valoir 'buy' ou 'sell'")
+    if int(quantity) <= 0:
+        raise ValueError("La quantité doit être positive")
+    if float(unit_price) < 0 or float(fees or 0) < 0:
+        raise ValueError("Le prix et les frais ne peuvent pas être négatifs")
     if not conn.execute("SELECT 1 FROM cards WHERE id=?", (card_id,)).fetchone():
         raise ValueError(f"Carte inconnue : {card_id} (lancez une synchro ou utilisez la recherche)")
     on_date = on_date or date.today().isoformat()

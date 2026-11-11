@@ -543,7 +543,9 @@ $$;
 -- Aperçu : les N cartes les mieux placées ce matin, avec leur cote (ni raisons, ni estimations).
 -- Le signal et le score ne sont renvoyés qu'à Pro / modérateurs (null pour tous les autres).
 -- N = réglage free_teaser_count, 10 au maximum.
-create or replace function public.market_teaser()
+-- Langue filtrée AVANT la limite (sinon une langue absente du top général renverrait une liste vide).
+drop function if exists public.market_teaser();
+create or replace function public.market_teaser(p_lang text default null)
 returns table (card_id text, name text, set_name text, lang text, image_small text,
                price numeric, signal text, buy_score numeric)
 language sql stable security definer set search_path = public as $$
@@ -552,6 +554,7 @@ language sql stable security definer set search_path = public as $$
          case when public.has_pro_access() then a.buy_score end
   from public.analysis a join public.cards c on c.id = a.card_id
   where c.price >= 50 and a.signal in ('ACHAT FORT', 'ACHAT')
+    and (coalesce(p_lang, '') = '' or c.lang = p_lang)
   order by a.buy_score desc, a.confidence desc nulls last
   limit least(10, greatest(0, coalesce(
     (select (value #>> '{}')::int from public.site_settings where key = 'free_teaser_count'), 5)));
@@ -856,7 +859,7 @@ grant execute on function public.site_tracked_cards() to service_role;
 grant execute on function public.check_price_alerts() to service_role;
 
 grant execute on function public.public_status() to anon, authenticated;
-grant execute on function public.market_teaser() to anon, authenticated;
+grant execute on function public.market_teaser(text) to anon, authenticated;
 grant execute on function public.is_pro(), public.is_moderator(), public.is_admin(), public.has_pro_access(),
   public.is_banned() to anon, authenticated;
 
@@ -1093,7 +1096,8 @@ create policy avatars_own_delete on storage.objects for delete to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- Enregistre la photo (ou l'efface avec null). L'adresse doit pointer vers le dossier du membre dans
--- le bucket avatars : impossible d'afficher une image venue d'ailleurs.
+-- le bucket avatars d'un projet Supabase (hôte <référence>.supabase.co) : impossible d'afficher une image
+-- venue d'ailleurs. Avec un domaine personnalisé Supabase, adapter l'hôte ci-dessous.
 create or replace function public.set_avatar(url text) returns void
 language plpgsql security definer set search_path = public as $$
 begin
@@ -1101,7 +1105,7 @@ begin
   if public.is_banned() then raise exception 'Compte suspendu' using errcode = '42501'; end if;
   if url is not null then
     if not public.has_pro_access() then raise exception 'La photo de profil est réservée aux membres Pro.' using errcode = '42501'; end if;
-    if url !~ ('^https://[^/]+/storage/v1/object/public/avatars/' || auth.uid()::text || '/avatar\.(jpg|png|gif)(\?v=[0-9]+)?$') then
+    if url !~ ('^https://[a-z0-9]{20}\.supabase\.co/storage/v1/object/public/avatars/' || auth.uid()::text || '/avatar\.(jpg|png|gif)(\?v=[0-9]+)?$') then
       raise exception 'Adresse d''image refusée' using errcode = '22023';
     end if;
   end if;

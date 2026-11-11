@@ -38,16 +38,24 @@ def _read_docs(folder):
 
 
 def import_inputs(src):
-    """Remplace transactions et objectifs par ceux saisis sur la page en ligne."""
-    db.init()
+    """Remplace transactions, objectifs et prix constatés par ceux saisis sur la page en ligne.
+
+    Une collection n'est remplacée que si son dossier existe dans l'export : un chemin mal tapé ou un
+    téléchargement incomplet ne doit jamais effacer le Pokédex local.
+    """
     src = Path(src)
+    if not src.is_dir():
+        raise SystemExit(f"Dossier d'import introuvable : {src} (rien n'a été modifié)")
+    present = {name: (src / name).is_dir() for name in ("transactions", "targets", "observed")}
+    if not any(present.values()):
+        raise SystemExit(f"Aucun dossier transactions/, targets/ ni observed/ dans {src} (rien n'a été modifié)")
+    db.init()
     txs = _read_docs(src / "transactions")
     targets = _read_docs(src / "targets")
     skipped = []
+    rows = []
     with db.session() as conn:
-        conn.execute("DELETE FROM transactions")
-        rows = []
-        for doc_id, t in txs.items():
+        for doc_id, t in (txs.items() if present["transactions"] else ()):
             cid = t.get("card_id")
             try:
                 qty = int(t.get("quantity") or 0)
@@ -55,22 +63,30 @@ def import_inputs(src):
             except (TypeError, ValueError):
                 skipped.append(doc_id)
                 continue
-            if not cid or qty <= 0 or t.get("side") not in ("buy", "sell"):
+            try:
+                fees = float(t.get("fees") or 0)
+            except (TypeError, ValueError):
+                skipped.append(doc_id)
+                continue
+            if not cid or qty <= 0 or price < 0 or fees < 0 or t.get("side") not in ("buy", "sell"):
                 skipped.append(doc_id)
                 continue
             if not conn.execute("SELECT 1 FROM cards WHERE id=?", (cid,)).fetchone():
                 conn.execute("INSERT INTO cards (id, name, set_name, number) VALUES (?,?,?,?)",
                              (cid, t.get("name") or cid, t.get("set_name"), t.get("number")))
             rows.append((cid, t["side"], t.get("date") or date.today().isoformat(), qty, price,
-                         float(t.get("fees") or 0), t.get("condition") or "NM", t.get("language") or "FR",
+                         fees, t.get("condition") or "NM", t.get("language") or "FR",
                          t.get("platform"), f"web:{doc_id}"))
         rows.sort(key=lambda r: (r[2], 0 if r[1] == "buy" else 1))
+        if present["transactions"]:
+            conn.execute("DELETE FROM transactions")
         conn.executemany(
             """INSERT INTO transactions (card_id,side,date,quantity,unit_price,fees,condition,language,platform,notes)
                VALUES (?,?,?,?,?,?,?,?,?,?)""", rows)
         # Prix constatés saisis sur la page (cartes françaises surtout) : observed/<card_id> = {prices: {date: prix}}
-        observed = _read_docs(src / "observed")
-        conn.execute("DELETE FROM prices WHERE source='manual'")
+        observed = _read_docs(src / "observed") if present["observed"] else {}
+        if present["observed"]:
+            conn.execute("DELETE FROM prices WHERE source='manual'")
         n_obs = 0
         for cid, o in observed.items():
             cid = o.get("card_id") or cid
@@ -86,11 +102,13 @@ def import_inputs(src):
                     conn.execute("INSERT OR REPLACE INTO prices (card_id,date,source,variant,price) VALUES (?,?,'manual','normal',?)",
                                  (cid, d, v))
                     n_obs += 1
-        conn.execute("DELETE FROM targets")
-        for cid, t in targets.items():
+        if present["targets"]:
+            conn.execute("DELETE FROM targets")
+        for cid, t in (targets.items() if present["targets"] else ()):
             conn.execute("INSERT INTO targets (card_id, buy_below, sell_above) VALUES (?,?,?)",
                          (t.get("card_id") or cid, t.get("buy_below"), t.get("sell_above")))
-    return {"transactions": len(rows), "targets": len(targets), "observed_prices": n_obs, "skipped": skipped}
+    return {"transactions": len(rows), "targets": len(targets), "observed_prices": n_obs, "skipped": skipped,
+            "collections_absentes": [k for k, v in present.items() if not v]}
 
 
 def _slim(r):

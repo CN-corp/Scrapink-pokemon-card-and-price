@@ -108,8 +108,8 @@ export async function createSupabaseBackend() {
       const rows = unwrap(await sb.from('announcements').select('id,title,body,level,active,starts_at,ends_at,created_at').eq('active', true).order('id', { ascending: false }));
       return rows.filter(a => (!a.starts_at || new Date(a.starts_at) <= now) && (!a.ends_at || new Date(a.ends_at) > now));
     },
-    // Langue des cartes choisie : filtrée ici (market_teaser renvoie toutes les langues)
-    async teaser(lang = '') { return (unwrap(await sb.rpc('market_teaser')) || []).filter(r => !lang || r.lang === lang); },
+    // Langue des cartes choisie : filtrée côté base, avant la limite du nombre de cartes (market_teaser)
+    async teaser(lang = '') { return unwrap(await sb.rpc('market_teaser', { p_lang: lang || null })) || []; },
     async searchCards({ q = '', lang = '', set_id = '', min = null, max = null, sort = 'price', limit = 60 } = {}) {
       let qb = textFilter(sb.from('cards').select(CARD_COLS), q);
       if (lang) qb = qb.eq('lang', lang);
